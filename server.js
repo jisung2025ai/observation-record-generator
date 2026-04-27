@@ -4,12 +4,35 @@ import next from 'next';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import { mkdirSync, writeFileSync } from 'fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const EXPRESS_PORT = parseInt(process.env.EXPRESS_PORT || '3001', 10);
 const dev = process.env.NODE_ENV !== 'production';
+
+// ── 쿠키 복원 (Railway 환경) ─────────────────────────────────
+async function restoreAuthCookies() {
+  const cookiesB64 = process.env.NOTEBOOKLM_COOKIES_B64;
+  if (!cookiesB64) {
+    console.log('[Auth] NOTEBOOKLM_COOKIES_B64 없음 - 로컬 쿠키 사용');
+    return;
+  }
+
+  // Railway Linux 환경의 notebooklm-mcp 쿠키 경로
+  const profileDir = '/root/.local/share/notebooklm-mcp/Data/chrome_profile';
+  const networkDir = `${profileDir}/Default/Network`;
+
+  try {
+    mkdirSync(networkDir, { recursive: true });
+    const cookieBytes = Buffer.from(cookiesB64, 'base64');
+    writeFileSync(`${networkDir}/Cookies`, cookieBytes);
+    console.log(`[Auth] ✅ 쿠키 복원 완료 (${cookieBytes.length} bytes)`);
+  } catch (err) {
+    console.error('[Auth] ❌ 쿠키 복원 실패:', err.message);
+  }
+}
 
 // ── Next.js 앱 초기화 ────────────────────────────────────────
 const app = next({ dev, hostname: '0.0.0.0', port: PORT });
@@ -141,6 +164,8 @@ api.post('/api/generate', async (req, res) => {
 });
 
 // ── 서버 시작 ─────────────────────────────────────────────────
+await restoreAuthCookies();
+
 app.prepare().then(() => {
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
