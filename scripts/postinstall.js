@@ -5,8 +5,8 @@ import { execSync } from 'child_process';
 if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME) {
   console.log('[postinstall] Railway 환경 감지 - Playwright Chromium 설치 중...');
   try {
-    execSync('npx playwright install chromium --with-deps', { stdio: 'inherit' });
-    console.log('[postinstall] Playwright Chromium 설치 완료');
+    execSync('npx playwright install chrome --with-deps', { stdio: 'inherit' });
+    console.log('[postinstall] Playwright Chrome 설치 완료');
   } catch (err) {
     console.error('[postinstall] Playwright 설치 실패:', err.message);
     // 설치 실패해도 빌드는 계속 진행
