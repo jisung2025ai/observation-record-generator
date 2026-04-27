@@ -8,6 +8,7 @@
     "start": "next start",
     "start:server": "node server.js",
     "start:all": "concurrently \"node server.js\" \"next start\"",
+    "postinstall": "npx playwright install chromium",
     "lint": "eslint"
   },
   "dependencies": {
