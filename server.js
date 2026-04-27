@@ -4,7 +4,7 @@ import next from 'next';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync } from 'fs';
 import { gunzip } from 'zlib';
 import { promisify } from 'util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -16,29 +16,46 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const EXPRESS_PORT = parseInt(process.env.EXPRESS_PORT || '3001', 10);
 const dev = process.env.NODE_ENV !== 'production';
 
-// ── 쿠키 복원 (Railway 환경, gzip 압축 해제) ────────────────
+// ── 쿠키 복원 (Railway 환경, Playwright storageState 방식) ───
 async function restoreAuthCookies() {
-  const cookiesB64 = process.env.NOTEBOOKLM_COOKIES_B64;
-  if (!cookiesB64) {
-    console.log('[Auth] NOTEBOOKLM_COOKIES_B64 없음 - 로컬 쿠키 사용');
+  const stateB64 = process.env.NOTEBOOKLM_STORAGE_STATE_B64;
+  if (!stateB64) {
+    console.log('[Auth] NOTEBOOKLM_STORAGE_STATE_B64 없음 - 로컬 쿠키 사용');
     return;
   }
 
-  // Railway Linux 환경의 notebooklm-mcp 쿠키 경로
   const profileDir = '/root/.local/share/notebooklm-mcp/Data/chrome_profile';
-  const networkDir = `${profileDir}/Default/Network`;
 
   try {
-    mkdirSync(networkDir, { recursive: true });
-    const compressed = Buffer.from(cookiesB64, 'base64');
-    // gzip 압축 해제
-    const cookieBytes = await gunzipAsync(compressed);
-    writeFileSync(`${networkDir}/Cookies`, cookieBytes);
-    console.log(`[Auth] ✅ 쿠키 복원 완료 (압축: ${compressed.length}B → 복원: ${cookieBytes.length}B)`);
+    mkdirSync(profileDir, { recursive: true });
+
+    // gzip 압축 해제 → JSON 파싱
+    const compressed = Buffer.from(stateB64, 'base64');
+    const jsonBuf = await gunzipAsync(compressed);
+    const storageState = JSON.parse(jsonBuf.toString('utf8'));
+
+    console.log(`[Auth] storageState 파싱 완료 (쿠키 ${storageState.cookies?.length || 0}개)`);
+
+    // Playwright로 Chrome 프로필 초기화 + 쿠키 주입
+    const { chromium } = await import('playwright');
+    const context = await chromium.launchPersistentContext(profileDir, {
+      headless: true,
+      channel: 'chrome',
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    if (storageState.cookies?.length > 0) {
+      await context.addCookies(storageState.cookies);
+      console.log(`[Auth] ✅ 쿠키 ${storageState.cookies.length}개 주입 완료`);
+    }
+
+    await context.close();
+    console.log('[Auth] Chrome 프로필 초기화 완료');
   } catch (err) {
     console.error('[Auth] ❌ 쿠키 복원 실패:', err.message);
   }
 }
+
 
 // ── Next.js 앱 초기화 ────────────────────────────────────────
 const app = next({ dev, hostname: '0.0.0.0', port: PORT });
