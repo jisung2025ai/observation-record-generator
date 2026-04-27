@@ -16,7 +16,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const EXPRESS_PORT = parseInt(process.env.EXPRESS_PORT || '3001', 10);
 const dev = process.env.NODE_ENV !== 'production';
 
-// ── 쿠키 복원 (Railway 환경, Playwright storageState 방식) ───
+// ── 쿠키 복원 (Railway 환경, notebooklm-mcp state.json 방식) ──
 async function restoreAuthCookies() {
   const stateB64 = process.env.NOTEBOOKLM_STORAGE_STATE_B64;
   if (!stateB64) {
@@ -24,39 +24,29 @@ async function restoreAuthCookies() {
     return;
   }
 
-  const profileDir = '/root/.local/share/notebooklm-mcp/Data/chrome_profile';
+  // notebooklm-mcp가 Linux에서 사용하는 실제 경로
+  // config.js: paths.data = ~/.local/share/notebooklm-mcp/
+  const browserStateDir = '/root/.local/share/notebooklm-mcp/browser_state';
 
   try {
-    mkdirSync(profileDir, { recursive: true });
+    mkdirSync(browserStateDir, { recursive: true });
 
-    // gzip 압축 해제 → JSON 파싱
+    // gzip 압쳙 해제 → JSON 파싱
     const compressed = Buffer.from(stateB64, 'base64');
     const jsonBuf = await gunzipAsync(compressed);
     const storageState = JSON.parse(jsonBuf.toString('utf8'));
 
     console.log(`[Auth] storageState 파싱 완료 (쿠키 ${storageState.cookies?.length || 0}개)`);
 
-    // Playwright로 Chrome 프로필 초기화 + 쿠키 주입
-    const { chromium } = await import('playwright');
-    const context = await chromium.launchPersistentContext(profileDir, {
-      headless: true,
-      channel: 'chrome',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-
-    if (storageState.cookies?.length > 0) {
-      await context.addCookies(storageState.cookies);
-      console.log(`[Auth] ✅ 쿠키 ${storageState.cookies.length}개 주입 완료`);
-    }
-
-    await context.close();
-    console.log('[Auth] Chrome 프로필 초기화 완료');
+    // notebooklm-mcp가 읽는 형식으로 state.json 저장
+    const { writeFileSync } = await import('fs');
+    const statePath = `${browserStateDir}/state.json`;
+    writeFileSync(statePath, jsonBuf.toString('utf8'), 'utf8');
+    console.log(`[Auth] ✅ state.json 저장 완료: ${statePath} (쿠키 ${storageState.cookies?.length || 0}개)`);
   } catch (err) {
     console.error('[Auth] ❌ 쿠키 복원 실패:', err.message);
   }
 }
-
-
 // ── Next.js 앱 초기화 ────────────────────────────────────────
 const app = next({ dev, hostname: '0.0.0.0', port: PORT });
 const handle = app.getRequestHandler();
