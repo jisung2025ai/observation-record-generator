@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "start:server": "node server.js",
-    "start:all": "concurrently \"node server.js\" \"next start\"",
+    "start:all": "concurrently \"node server.js\" \"next start -p ${PORT:-3000}\"",
     "postinstall": "node scripts/postinstall.js",
     "lint": "eslint"
   },
