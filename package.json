@@ -3,16 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start",
-    "start:server": "node server.js",
-    "start:all": "concurrently \"node server.js\" \"next start -H 0.0.0.0 -p ${PORT:-3000}\"",
+    "start": "node server.js",
     "postinstall": "node scripts/postinstall.js",
     "lint": "eslint"
   },
   "dependencies": {
-    "concurrently": "^8.2.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
