@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 로그 및 임시 파일
+*.log
+*.txt
+server_debug.log
+server_log.txt
+server_output.txt
+dev_output.txt
+dev_output_utf8.txt
+error_output.txt
+output.txt
+temp_script.js
+test-mcp.js

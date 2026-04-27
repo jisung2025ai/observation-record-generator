@@ -6,10 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:server": "node server.js",
+    "start:all": "concurrently \"next start -p ${PORT:-3000}\" \"node server.js\"",
     "lint": "eslint"
   },
   "dependencies": {
+    "concurrently": "^8.2.2",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "framer-motion": "^12.35.0",
+    "lucide-react": "^0.577.0",
     "next": "16.1.6",
+    "playwright": "^1.58.2",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -22,5 +32,6 @@
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "type": "module"
 }
