@@ -1,6 +1,4 @@
-[providers]
-providers = ["node"]
-
+# Chromium을 위한 시스템 패키지만 추가 (Node.js는 nixpacks가 자동 감지)
 [phases.setup]
 nixPkgs = [
   "chromium",
@@ -19,12 +17,3 @@ nixPkgs = [
   "xorg.libXrandr",
   "xorg.libxcb"
 ]
-
-[phases.install]
-cmds = ["npm install"]
-
-[phases.build]
-cmds = ["npx playwright install chromium --with-deps", "npm run build"]
-
-[start]
-cmd = "npm run start:all"
