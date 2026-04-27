@@ -5,14 +5,18 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { mkdirSync, writeFileSync } from 'fs';
+import { gunzip } from 'zlib';
+import { promisify } from 'util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+const gunzipAsync = promisify(gunzip);
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const EXPRESS_PORT = parseInt(process.env.EXPRESS_PORT || '3001', 10);
 const dev = process.env.NODE_ENV !== 'production';
 
-// ── 쿠키 복원 (Railway 환경) ─────────────────────────────────
+// ── 쿠키 복원 (Railway 환경, gzip 압축 해제) ────────────────
 async function restoreAuthCookies() {
   const cookiesB64 = process.env.NOTEBOOKLM_COOKIES_B64;
   if (!cookiesB64) {
@@ -26,9 +30,11 @@ async function restoreAuthCookies() {
 
   try {
     mkdirSync(networkDir, { recursive: true });
-    const cookieBytes = Buffer.from(cookiesB64, 'base64');
+    const compressed = Buffer.from(cookiesB64, 'base64');
+    // gzip 압축 해제
+    const cookieBytes = await gunzipAsync(compressed);
     writeFileSync(`${networkDir}/Cookies`, cookieBytes);
-    console.log(`[Auth] ✅ 쿠키 복원 완료 (${cookieBytes.length} bytes)`);
+    console.log(`[Auth] ✅ 쿠키 복원 완료 (압축: ${compressed.length}B → 복원: ${cookieBytes.length}B)`);
   } catch (err) {
     console.error('[Auth] ❌ 쿠키 복원 실패:', err.message);
   }
