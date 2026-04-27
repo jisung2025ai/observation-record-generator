@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "start:server": "node server.js",
-    "start:all": "concurrently \"next start -p ${PORT:-3000}\" \"node server.js\"",
+    "start:all": "concurrently \"node server.js\" \"next start\"",
     "lint": "eslint"
   },
   "dependencies": {

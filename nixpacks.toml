@@ -1,2 +1,30 @@
+[providers]
+providers = ["node"]
+
 [phases.setup]
-nixPkgs = ["chromium", "nss", "atk", "cups", "gtk3", "libdrm", "mesa", "libxkbcommon", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb"]
+nixPkgs = [
+  "chromium",
+  "nss",
+  "atk",
+  "cups",
+  "gtk3",
+  "libdrm",
+  "mesa",
+  "libxkbcommon",
+  "xorg.libX11",
+  "xorg.libXcomposite",
+  "xorg.libXdamage",
+  "xorg.libXext",
+  "xorg.libXfixes",
+  "xorg.libXrandr",
+  "xorg.libxcb"
+]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npx playwright install chromium --with-deps", "npm run build"]
+
+[start]
+cmd = "npm run start:all"
