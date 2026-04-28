@@ -7,10 +7,25 @@ import bodyParser from 'body-parser';
 import { mkdirSync } from 'fs';
 import { gunzip } from 'zlib';
 import { promisify } from 'util';
+import os from 'os';
+import path from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const gunzipAsync = promisify(gunzip);
+
+// HOME 기반 동적 경로 계산 (env-paths 'notebooklm-mcp' suffix "" 방식 복제)
+function getNotebooklmDataDir() {
+  const platform = os.platform();
+  const home = process.env.HOME || os.homedir();
+  if (platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'notebooklm-mcp');
+  } else if (platform === 'darwin') {
+    return path.join(home, 'Library', 'Application Support', 'notebooklm-mcp');
+  } else {
+    return path.join(home, '.local', 'share', 'notebooklm-mcp');
+  }
+}
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const EXPRESS_PORT = parseInt(process.env.EXPRESS_PORT || '3001', 10);
@@ -24,25 +39,32 @@ async function restoreAuthCookies() {
     return;
   }
 
-  // notebooklm-mcp가 Linux에서 사용하는 실제 경로
-  // config.js: paths.data = ~/.local/share/notebooklm-mcp/
-  const browserStateDir = '/root/.local/share/notebooklm-mcp/browser_state';
+  // env-paths 라이브러리와 동일한 방식으로 경로 계산
+  const dataDir = getNotebooklmDataDir();
+  const browserStateDir = path.join(dataDir, 'browser_state');
+  console.log(`[Auth] HOME=${process.env.HOME}, dataDir=${dataDir}`);
 
   try {
     mkdirSync(browserStateDir, { recursive: true });
 
-    // gzip 압쳙 해제 → JSON 파싱
+    // gzip 압축 해제 → JSON 파싱
     const compressed = Buffer.from(stateB64, 'base64');
     const jsonBuf = await gunzipAsync(compressed);
     const storageState = JSON.parse(jsonBuf.toString('utf8'));
 
     console.log(`[Auth] storageState 파싱 완료 (쿠키 ${storageState.cookies?.length || 0}개)`);
 
-    // notebooklm-mcp가 읽는 형식으로 state.json 저장
+    // notebooklm-mcp가 읽는 state.json 저장
     const { writeFileSync } = await import('fs');
-    const statePath = `${browserStateDir}/state.json`;
+    const statePath = path.join(browserStateDir, 'state.json');
     writeFileSync(statePath, jsonBuf.toString('utf8'), 'utf8');
     console.log(`[Auth] ✅ state.json 저장 완료: ${statePath} (쿠키 ${storageState.cookies?.length || 0}개)`);
+
+    // chrome_profile 디렉토리도 미리 생성 (notebooklm-mcp가 탐색)
+    const chromeProfileDir = path.join(dataDir, 'chrome_profile');
+    mkdirSync(chromeProfileDir, { recursive: true });
+    mkdirSync(path.join(dataDir, 'chrome_profile_instances'), { recursive: true });
+    console.log(`[Auth] ✅ 디렉토리 구조 생성 완료`);
   } catch (err) {
     console.error('[Auth] ❌ 쿠키 복원 실패:', err.message);
   }
@@ -72,9 +94,17 @@ async function initMCP() {
   console.log('[MCP] Connecting to NotebookLM MCP...');
 
   try {
+    // HOME 및 경로 환경변수를 명시적으로 전달하여 state.json 경로 일치 보장
+    const mcpEnv = {
+      ...process.env,
+      HOME: process.env.HOME || os.homedir(),
+      HEADLESS: 'true',
+    };
+    console.log(`[MCP] HOME=${mcpEnv.HOME}, dataDir=${getNotebooklmDataDir()}`);
     const transport = new StdioClientTransport({
       command: 'npx',
       args: ['-y', 'notebooklm-mcp@latest'],
+      env: mcpEnv,
     });
 
     const client = new Client(
