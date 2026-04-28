@@ -17,6 +17,7 @@
     "framer-motion": "^12.35.0",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
+    "notebooklm-mcp": "^1.2.1",
     "playwright": "^1.58.2",
     "react": "19.2.3",
     "react-dom": "19.2.3"

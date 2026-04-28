@@ -80,7 +80,7 @@ let isConnecting = false;
 async function initMCP() {
   if (isConnecting) {
     let waited = 0;
-    while (isConnecting && waited < 30000) {
+    while (isConnecting && waited < 90000) {   // 90초 대기
       await new Promise(r => setTimeout(r, 500));
       waited += 500;
     }
@@ -101,9 +101,10 @@ async function initMCP() {
       HEADLESS: 'true',
     };
     console.log(`[MCP] HOME=${mcpEnv.HOME}, dataDir=${getNotebooklmDataDir()}`);
+    // 로컬 설치된 바이너리 직접 실행 → npx 런타임 다운로드 지연 없음
     const transport = new StdioClientTransport({
-      command: 'npx',
-      args: ['-y', 'notebooklm-mcp@latest'],
+      command: 'node',
+      args: [path.join(process.cwd(), 'node_modules', 'notebooklm-mcp', 'dist', 'index.js')],
       env: mcpEnv,
     });
 
@@ -173,11 +174,11 @@ api.post('/api/generate', async (req, res) => {
         question: prompt,
         browser_options: {
           show: false,
-          stealth: { enabled: true },
-          timeout_ms: 90000
+          stealth: { enabled: false },  // stealth 비활성화로 속도 향상
+          timeout_ms: 240000            // 4분
         }
       }
-    }, undefined, { timeout: 130000 });
+    }, undefined, { timeout: 300000 }); // 5분
 
     let draftText = '결과를 받아오지 못했습니다.';
 
@@ -208,6 +209,13 @@ api.post('/api/generate', async (req, res) => {
 
 // ── 서버 시작 ─────────────────────────────────────────────────
 await restoreAuthCookies();
+
+// MCP 미리 초기화 (첫 요청 지연 제거)
+initMCP().then(() => {
+  console.log('[MCP] 🔥 사전 초기화 완료');
+}).catch(err => {
+  console.warn('[MCP] ⚠️ 사전 초기화 실패 (요청 시 재시도):', err.message);
+});
 
 app.prepare().then(() => {
   createServer((req, res) => {
